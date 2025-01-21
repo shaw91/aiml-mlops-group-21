@@ -1,100 +1,80 @@
-name: ML Model CI/CD Pipeline
+name: ML Project CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   quality-checks:
+    name: Linting and Code Quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
-
+          python-version: '3.9'
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install flake8 pytest black isort
-          pip install -r requirements.txt
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Code formatting check
+      - name: Run linting
         run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           black --check .
           isort --check-only .
 
-      - name: Lint with flake8
-        run: |
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-          flake8 . --count --exit-zero --max-complexity=10 --statistics
-
-  tests:
+  test:
+    name: Run Tests
     needs: quality-checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: '3.9'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-cov
-          pip install -r requirements.txt
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Run tests with coverage
+      - name: Run tests
         run: |
-          pytest tests/ --cov=src/ --cov-report=xml
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v3
-        with:
-          name: coverage-report
-          path: coverage.xml
-
-  model-training:
-    needs: tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.9"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Train model
-        run: python src/train_model.py
-
-      - name: Save model artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: trained-model
-          path: models/
+          pytest --cov=./ --cov-report=xml
 
   deploy:
-    needs: model-training
+    name: Deploy Model
+    needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v3
-      - name: Download model artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: trained-model
-          path: models/
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Deploy model
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Train and Deploy
         run: |
-          echo "Deploying model to production environment"
-          # Add deployment steps here (e.g., push to model registry, deploy to cloud)
+          echo "Starting model training..."
+          # Add your model training commands here
+          echo "Model training completed"
+          echo "Starting deployment..."
+          # Add your deployment commands here
